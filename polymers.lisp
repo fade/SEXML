@@ -6,9 +6,9 @@
 ;; Maintainer: Brian O'Reilly <fade@deepsky.com>
 ;; Created: Mon Jun 17 14:38:02 2013 (-0400)
 ;; Version: 0.0.0
-;; Last-Updated: Tue Jul  2 19:34:33 2013 (-0400)
-;;           By: fade
-;;     Update #: 33
+;; Last-Updated: Fri Jul  5 18:39:43 2013 (-0400)
+;;           By: Brian O'Reilly
+;;     Update #: 38
 ;; URL: 
 ;; Doc URL: 
 ;; Keywords: 
@@ -33,12 +33,28 @@
 
 (in-package :sexml)
 
+;; file utilities
+
+(defun find-html-targets (path)
+  "given a base path, finds all the html files at or below path."
+  (let ((path (cl-fad:canonical-pathname path)))
+    (walk-directory path
+                    #'(lambda (path)
+                        (let ((outcome (cl-ppcre:all-matches-as-strings ".+html$" (file-namestring path))))
+                          (if outcome
+                              (format t  "~&~A" path)))))))
+
 ;; HTML utilities
 
 (defun clean-html (path)
   (cxml:parse-file path (cxml-dom:make-dom-builder))
   ;; (chtml:parse string (cxml:make-string-sink))
   )
+
+(defun get-node-data-as-list (path)
+  "given the path of an file of html code, return a list representing
+  the elements and attributes contained in the file."
+  (cxml:parse-file path (cxml-xmls:make-xmls-builder)))
 
 (defun klack-it (path)
   (klacks:with-open-source
