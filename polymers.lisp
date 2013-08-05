@@ -6,9 +6,9 @@
 ;; Maintainer: Brian O'Reilly <fade@deepsky.com>
 ;; Created: Mon Jun 17 14:38:02 2013 (-0400)
 ;; Version: 0.0.0
-;; Last-Updated: Fri Jul  5 18:39:43 2013 (-0400)
+;; Last-Updated: Mon Aug  5 17:17:30 2013 (-0400)
 ;;           By: Brian O'Reilly
-;;     Update #: 38
+;;     Update #: 47
 ;; URL: 
 ;; Doc URL: 
 ;; Keywords: 
@@ -37,12 +37,16 @@
 
 (defun find-html-targets (path)
   "given a base path, finds all the html files at or below path."
-  (let ((path (cl-fad:canonical-pathname path)))
+  (let ((path (cl-fad:canonical-pathname path))
+        (pushit nil))
     (walk-directory path
                     #'(lambda (path)
-                        (let ((outcome (cl-ppcre:all-matches-as-strings ".+html$" (file-namestring path))))
+                        (let ((outcome (cl-ppcre:all-matches-as-strings "g-.+html$" (file-namestring path))))
                           (if outcome
-                              (format t  "~&~A" path)))))))
+                              (progn
+                                ;; (format t  "~&~A" path)
+                                (pushnew path pushit))))))
+    pushit))
 
 ;; HTML utilities
 
@@ -56,20 +60,28 @@
   the elements and attributes contained in the file."
   (cxml:parse-file path (cxml-xmls:make-xmls-builder)))
 
-(defun klack-it (path)
-  (klacks:with-open-source
-    (s (cxml:make-source path))
-    (loop
-          :for key = (klacks:peek s)
-          :while key
-          :do
-             ;; (format t "~&BOSTAGE:: ~A" key)
-             (case key
-                 (:start-element
-                  (format t "~&~A {" (klacks:current-qname s)))
-                 (:end-element
-                  (format t "}")))
-             (klacks:consume s))))
+(defun html-as-stp-doc (path)
+  (handler-bind
+      ((cxml-stp:stp-error #'(lambda (c)
+                               (format t "!IHATEXML!")
+                               (format t "~&~%~A~%~%" (describe c))
+                               nil)))
+      (chtml:parse path (cxml-stp:make-builder))))
+
+;; (defun klack-it (path)
+;;   (klacks:with-open-source
+;;     (s (cxml:make-source path))
+;;     (loop
+;;           :for key = (klacks:peek s)
+;;           :while key
+;;           :do
+;;              ;; (format t "~&BOSTAGE:: ~A" key)
+;;              (case key
+;;                  (:start-element
+;;                   (format t "~&~A {" (klacks:current-qname s)))
+;;                  (:end-element
+;;                   (format t "}")))
+;;              (klacks:consume s))))
 
 (defun read-html-file (path)
   (with-open-file (input path :direction :input)
@@ -94,18 +106,19 @@
 
 (defun bung (doc)
   (stp:do-recursively (a doc)
-         (cond
-           ;; ((typep a 'stp:comment)
-           ;;  (format t "~&Document Comment: ~A || ~A" (stp:local-name a) (stp:string-value a)))
-           ((typep a 'stp:element)
-            (format t "~&Element: ~A~%Value: ~A~%" (stp:local-name a) (stp:string-value a)))
-           ;; ((typep a 'stp:element)
-           ;;  (format t "~&Element: ~A~%~&Has Attributes Named: ~{ ~A~^ ~}" 
-           ;;          (stp:local-name a) (stp:list-attributes a))) 
-           ;; ((typep a 'stp:attribute)
-           ;;  (format t "" 
-           ;;          (stp:attribute a) (stp:attribute-value a)))
-           )))
+    (cond
+      ;; ((typep a 'stp:comment)
+      ;;  (format t "~&Document Comment: ~A || ~A" (stp:local-name a) (stp:string-value a)))
+      ((and (typep a 'stp:element)
+            (string= (string-downcase (stp:local-name a)) "element"))
+       (format t "~&Element: ~A~%Value: ~A~%" (stp:local-name a) (stp:string-value a)))
+      ;; ((typep a 'stp:element)
+      ;;  (format t "~&Element: ~A~%~&Has Attributes Named: ~{ ~A~^ ~}" 
+      ;;          (stp:local-name a) (stp:list-attributes a))) 
+      ;; ((typep a 'stp:attribute)
+      ;;  (format t "" 
+      ;;          (stp:attribute a) (stp:attribute-value a)))
+      )))
 
 (defclass html-include (dtd)
   ((uri :initarg :uri :reader include-uri :initform nil))
